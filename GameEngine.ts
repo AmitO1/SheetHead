@@ -27,6 +27,8 @@ export interface GameState {
   lastPlayedPlayerId: string;
   status: 'waiting' | 'playing' | 'finished';
   winnerId?: string;
+  isAnotherTurn: boolean;
+  lastPlayedCardValue?: string;
 }
 
 // ------------ Game Setup ------------
@@ -77,12 +79,17 @@ export function startGame(playerNames: string[]): GameState {
     currentPlayerIndex: Math.floor(Math.random() * players.length),
     status: 'playing',
     lastPlayedPlayerId: '',
+    isAnotherTurn: false,
+    lastPlayedCardValue: undefined,
   };
 }
 
 // ------------ Core Gameplay ------------
 
 export function playCards(game: GameState, playerId: string, cardIds: string[]): boolean {
+  // Reset isAnotherTurn at the start of each turn
+  game.isAnotherTurn = false;
+  
   const player = game.players.find(p => p.id === playerId);
   if (!player || player.isOut) throw new Error('Invalid player');
 
@@ -96,10 +103,17 @@ export function playCards(game: GameState, playerId: string, cardIds: string[]):
 
   //first check if the player can play
   if (isPlayable(player.hand, topCard, game, playerId)) {
-    //TODO - handle the 8 skip logic in case the player have 8/9 let him play else skip the turn
+    //special rule for 8/9 - if player have no 8/9 then he should skip the turn
+    if (!player.hand.some(card => card.value === '8' || card.value === '9') && topCard?.value === '8') {
+      console.log('PLAYER HAS NO 8/9');
+      advanceTurn(game);
+      return true;
+    }
 
     //then check if the move is valid - if move is invalid but player can play then he should choose another card to play
-    if (!isValidMove(cards, topCard, game.pile)) {
+    const isAfterFive = game.lastPlayedCardValue === '5';
+    if (!isValidMove(cards, topCard, game.pile, isAfterFive)) {
+        console.log('INVALID MOVE');
         return false; // Player can still play, but needs to choose different cards
       }
     
@@ -110,13 +124,37 @@ export function playCards(game: GameState, playerId: string, cardIds: string[]):
         game.pile.push(card);
       }
       
-      // Update last played player
+      // Update last played player and card value
       game.lastPlayedPlayerId = playerId;
+      game.lastPlayedCardValue = cards[0].value;
+    
+      // Check for special card effects
+      const playedCard = cards[0]; // Assuming all cards have same value
+      
+      // If player played a 5, they get another turn
+      if (playedCard.value === '5') {
+        console.log('PLAYER PLAYED 5 - ANOTHER TURN');
+        game.isAnotherTurn = true;
+        refillHand(player, game);
+        return true; // player plays again, turn completed
+      }
+      
+      // If player played a 10, burn the pile and they get another turn
+      if (playedCard.value === '10') {
+        console.log('PLAYER PLAYED 10 - BURNING PILE AND ANOTHER TURN');
+        game.pile = []; // Burn the pile
+        game.lastPlayedCardValue = undefined; // Reset when pile burns
+        game.isAnotherTurn = true;
+        refillHand(player, game);
+        return true; // player plays again, turn completed
+      }
     
       // BURN check
       if (shouldBurnPile(game.pile)) {
         console.log('BURNING PILE');
         game.pile = [];
+        game.isAnotherTurn = true;
+        game.lastPlayedCardValue = undefined; // Reset when pile burns
         refillHand(player, game);
         return true; // player plays again, turn completed
       }
@@ -128,6 +166,10 @@ export function playCards(game: GameState, playerId: string, cardIds: string[]):
         game.winnerId = player.id;
         return true; // game finished, turn completed
       }
+      
+      // Normal turn completion - advance to next player
+      advanceTurn(game);
+      return true; // turn completed normally
   }
   else {
     // Player can't play, so they take the pile
@@ -138,9 +180,6 @@ export function playCards(game: GameState, playerId: string, cardIds: string[]):
     advanceTurn(game);
     return true; // turn completed (player took pile)
   }
-
-  advanceTurn(game);
-  return true; // turn completed normally
 }
 
 export function takePile(game: GameState, playerId: string): void {
@@ -155,14 +194,19 @@ export function takePile(game: GameState, playerId: string): void {
 }
 
 function advanceTurn(game: GameState): void {
-  const n = game.players.length;
-  let next = (game.currentPlayerIndex + 1) % n;
+  // Only advance turn if player doesn't get another turn
+  if (!game.isAnotherTurn) {
+    const n = game.players.length;
+    let next = (game.currentPlayerIndex + 1) % n;
 
-  while (game.players[next].isOut) {
-    next = (next + 1) % n;
+    while (game.players[next].isOut) {
+      next = (next + 1) % n;
+    }
+
+    game.currentPlayerIndex = next;
+    // Reset last played card value when turn advances
+    game.lastPlayedCardValue = undefined;
   }
-
-  game.currentPlayerIndex = next;
 }
 
 function refillHand(player: Player, game: GameState): void {
@@ -202,7 +246,8 @@ function checkWinCondition(player: Player): boolean {
 export function isValidMove(
   cards: Card[],
   topCard: Card | undefined,
-  pile: Card[]
+  pile: Card[],
+  isAfterFive: boolean = false
 ): boolean {
   if (cards.length === 0) return false;
 
@@ -213,10 +258,49 @@ export function isValidMove(
   // Custom rule: if pile is empty → allow any card
   if (!topCard) return true;
 
-  // TODO: Add your custom rules (8s, skip, etc.) - these will override the basic rule below
+  // Special case 1: After playing a 5, player can put as many cards of same value as they have
+  if (isAfterFive && cards.length > 1) {
+    return true; // Allow multiple cards after 5
+  }
+
+  // Special case 2: Burning the pile with 4 cards
+  if (cards.length > 1) {
+    // Check if this would complete a burn (4 consecutive of same value)
+    const pileValue = topCard.value;
+    
+    // Count consecutive cards of the same value from the top
+    let consecutiveCount = 0;
+    for (let i = pile.length - 1; i >= 0; i--) {
+      if (pile[i].value === pileValue) {
+        consecutiveCount++;
+      } else {
+        break; // Stop counting when we hit a different value
+      }
+    }
+    
+    const neededForBurn = 4 - consecutiveCount;
+    
+    if (cards.length === neededForBurn && cards[0].value === pileValue) {
+      return true; // Allow multiple cards to complete burn
+    }
+    
+    // If not a burn completion, only allow single cards
+    return false;
+  }
+
+  if (topCard.value === '7') {
+    return cards.some(card => card.value === 'JOKER' || getCardValue(card) <= 7);
+  }
+  if (topCard.value === '3') {
+    return cards.some(card => card.value === 'JOKER');
+  }
   
+  //if value is 2,5,10,3,joker then player can play
+  if (cards.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '5' || card.value === '10' || card.value === '3')) {
+    return true;
+  }
   // Basic rule: card must be higher than the top card (lowest priority)
-  return getCardValue(cards[0]) > getCardValue(topCard);
+  return getCardValue(cards[0]) >= getCardValue(topCard);
 }
 
 export function shouldBurnPile(pile: Card[]): boolean {
@@ -242,7 +326,14 @@ function isPlayable(hand: Card[], topCard: Card | undefined, game: GameState, cu
     // Player can only play if they have a joker, and they must play the joker
     return hand.some(card => card.value === 'JOKER');
   }
-  
+  //if player have either 2,3,5,joker then he can play
+  if (hand.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '3' || card.value === '5')) {
+    return true;
+  }
+  //if top card is 7, then player can play only with 2,4,6,5,7,joker
+  if (topCard.value === '7') {
+    return hand.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '4' || card.value === '6' || card.value === '5' || card.value === '7');
+  }
   // If top card is 8 and the previous player put it, current player can play anycase either skip turn or put 8/9
   if (topCard.value === '8') {
     const currentPlayerIndex = game.players.findIndex(p => p.id === currentPlayerId);
@@ -254,28 +345,15 @@ function isPlayable(hand: Card[], topCard: Card | undefined, game: GameState, cu
     }
   }
 
-  // If top card is not 7
-  if (topCard.value !== '7') {
-    // Check if player has a card bigger than top card or 2/10/5/3/joker
-    return hand.some(card => {
-      return card.value === 'JOKER' || 
-             card.value === '2' || 
-             card.value === '10' || 
-             card.value === '5' || 
-             card.value === '3' || 
-             getCardValue(card) > getCardValue(topCard);
-    });
-  }
+  // For all other cases (not 3, not 7, not 8), check if player has a card bigger than top card or 2/10/5/3/joker
+  return hand.some(card => {
+    return card.value === 'JOKER' || 
+           card.value === '2' || 
+           card.value === '10' || 
+           card.value === '5' || 
+           card.value === '3' || 
+           getCardValue(card) >= getCardValue(topCard);
+  });
   
-  // If top card is 7
-  if (topCard.value === '7') {
-    // Check if player has a card which is 7 or below or joker
-    return hand.some(card => {
-      return card.value === 'JOKER' || 
-             getCardValue(card) <= 7;
-    });
-  }
-  
-  return false;
 }
 

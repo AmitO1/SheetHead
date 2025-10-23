@@ -1,0 +1,67 @@
+# =======================================
+# Global .gitignore for shithead-cardgame
+# =======================================
+
+# Node modules (all subfolders)
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build & cache directories
+.expo/
+.expo-shared/
+.cache/
+dist/
+build/
+web-build/
+android/
+ios/
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.local
+.env.production
+.env.development
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# Expo/Metro cache
+.expo/
+.expo-shared/
+metro-cache/
+
+# Coverage / testing
+coverage/
+jest/
+test-results/
+
+# Package locks (if you don’t want them)
+# Uncomment if you use a single lock file per repo
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Misc
+*.log
+*.tmp
+*.bak
+
+# macOS & system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?

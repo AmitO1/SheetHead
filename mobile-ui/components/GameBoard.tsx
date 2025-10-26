@@ -3,10 +3,11 @@
 import { useState } from "react"
 import { View, StyleSheet, Dimensions } from "react-native"
 import { PlayerArea } from "./PlayerArea"
-import { PlayingCard } from "./PlayingCard"
+import { DraggableCard } from "./DraggableCard"
 import { CenterPile } from "./CenterPile"
 import { Deck } from "./Deck"
 import { TakePileButton } from "./TakePileButton"
+import { detectDropZone, getDefaultDropZones } from "../utils/dropZoneDetection"
 
 const { width, height } = Dimensions.get("window")
 const isTablet = width >= 768
@@ -28,7 +29,7 @@ const mockCurrentPlayer = {
 
 const mockHandCards = [
   { id: 1, value: "A", suit: "♠", color: "black" as const },
-  { id: 2, value: "K", suit: "♥", color: "red" as const },
+  { id: 2, value: "A", suit: "♥", color: "red" as const },
   { id: 3, value: "Q", suit: "♣", color: "black" as const },
   { id: 4, value: "J", suit: "♦", color: "red" as const },
   { id: 5, value: "10", suit: "♠", color: "black" as const },
@@ -37,6 +38,33 @@ const mockHandCards = [
 export function GameBoard() {
   const [selectedCard, setSelectedCard] = useState<number | null>(null)
   const [showPileHistory, setShowPileHistory] = useState(false)
+  const [draggingCard, setDraggingCard] = useState<number | null>(null)
+
+  const { centerPileZone, playerHandZone } = getDefaultDropZones()
+
+  const handleDragStart = (cardId: number) => {
+    setDraggingCard(cardId)
+    console.log(`Started dragging card ${cardId}`)
+  }
+
+  const handleDragEnd = (cardId: number, dropX: number, dropY: number) => {
+    setDraggingCard(null)
+    
+    const detection = detectDropZone(dropX, dropY, centerPileZone, playerHandZone)
+    
+    if (detection.isInCenterPile) {
+      console.log("Trying to put card")
+    } else if (detection.isInPlayerHand) {
+      console.log("Returning card to player hand")
+    } else {
+      // Determine closest zone for feedback
+      if (detection.closestZone === "centerPile") {
+        console.log("Close to center pile - trying to put card")
+      } else {
+        console.log("Close to player hand - returning card to player hand")
+      }
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -69,13 +97,16 @@ export function GameBoard() {
               key={card.id}
               style={[styles.handCard, { zIndex: index, marginLeft: index > 0 ? (isTablet ? -28 : -24) : 0 }]}
             >
-              <PlayingCard
+              <DraggableCard
                 value={card.value}
                 suit={card.suit}
                 color={card.color}
                 isSelected={selectedCard === card.id}
+                isDragging={draggingCard === card.id}
                 size="sm"
                 onPress={() => setSelectedCard(card.id)}
+                onDragStart={() => handleDragStart(card.id)}
+                onDragEnd={(dropX, dropY) => handleDragEnd(card.id, dropX, dropY)}
               />
             </View>
           ))}

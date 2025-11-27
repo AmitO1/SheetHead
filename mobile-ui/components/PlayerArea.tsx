@@ -33,8 +33,8 @@ export function PlayerArea({ player, position, timerProgress }: PlayerAreaProps)
         <Svg width={avatarSize} height={avatarSize} viewBox="0 0 48 48" style={styles.timerRing}>
           <Defs>
             <LinearGradient id="timer-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#3b82f6" />
-              <Stop offset="100%" stopColor="#06b6d4" />
+              <Stop offset="0%" stopColor="rgba(66, 5, 86, 0.6)" />
+              <Stop offset="100%" stopColor="rgba(212, 199, 222, 0.6)" />
             </LinearGradient>
           </Defs>
           <Circle cx="24" cy="24" r={radius} fill="none" stroke="rgba(148,163,184,0.3)" strokeWidth="3" />

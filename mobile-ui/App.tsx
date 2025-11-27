@@ -1,18 +1,31 @@
+import { useState } from "react"
 import { View, StatusBar, StyleSheet } from "react-native"
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { GameBoard } from "./components/GameBoard"
+import { JoinGame } from "./components/JoinGame"
 import { LinearGradient } from "expo-linear-gradient"
 
 function AppContent() {
   const insets = useSafeAreaInsets()
-  
+  const [isInGame, setIsInGame] = useState(false)
+  const [playerName, setPlayerName] = useState("")
+  const [gameId, setGameId] = useState<string>("")
+  const [playerCount, setPlayerCount] = useState<number | undefined>(undefined)
+
+  const handleStartGame = (name: string, id: string, count?: number) => {
+    setPlayerName(name)
+    setGameId(id)
+    setPlayerCount(count)
+    setIsInGame(true)
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <LinearGradient colors={["#532c5d", "#d4c7de", "#f7f7fb"]} style={styles.gradient}>
         <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-          <GameBoard />
+          {isInGame ? <GameBoard /> : <JoinGame onStartGame={handleStartGame} />}
         </View>
       </LinearGradient>
     </View>

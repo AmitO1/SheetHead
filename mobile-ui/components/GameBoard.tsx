@@ -27,7 +27,7 @@ const mockCurrentPlayer = {
   isCurrentPlayer: true,
 }
 
-const mockHandCards = [
+const initialHandCards = [
   { id: 1, value: "A", suit: "♠", color: "black" as const },
   { id: 2, value: "A", suit: "♥", color: "red" as const },
   { id: 3, value: "Q", suit: "♣", color: "black" as const },
@@ -35,10 +35,17 @@ const mockHandCards = [
   { id: 5, value: "10", suit: "♠", color: "black" as const },
 ]
 
+type HandCard = (typeof initialHandCards)[number]
+
 export function GameBoard() {
+  const [handCards, setHandCards] = useState<HandCard[]>(initialHandCards)
   const [selectedCard, setSelectedCard] = useState<number | null>(null)
   const [showPileHistory, setShowPileHistory] = useState(false)
   const [draggingCard, setDraggingCard] = useState<number | null>(null)
+  const [heldGroup, setHeldGroup] = useState<{ primaryId: number | null; extras: HandCard[] }>({
+    primaryId: null,
+    extras: [],
+  })
 
   const { centerPileZone, playerHandZone } = getDefaultDropZones()
 
@@ -47,11 +54,29 @@ export function GameBoard() {
     console.log(`Started dragging card ${cardId}`)
   }
 
+  const handleCardLongHold = (cardId: number) => {
+    setHandCards((currentHand) => {
+      const heldCard = currentHand.find((card) => card.id === cardId)
+      if (!heldCard) return currentHand
+
+      const extras = currentHand.filter((card) => card.value === heldCard.value && card.id !== cardId)
+      if (extras.length === 0) {
+        setHeldGroup({ primaryId: null, extras: [] })
+        return currentHand
+      }
+
+      setHeldGroup({ primaryId: cardId, extras })
+      return currentHand.filter((card) => !extras.some((extra) => extra.id === card.id))
+    })
+  }
+
   const handleDragEnd = (cardId: number, dropX: number, dropY: number) => {
     setDraggingCard(null)
-    
+
     const detection = detectDropZone(dropX, dropY, centerPileZone, playerHandZone)
-    
+    const playedToCenter =
+      detection.isInCenterPile || (!detection.isInPlayerHand && detection.closestZone === "centerPile")
+
     if (detection.isInCenterPile) {
       console.log("Trying to put card")
     } else if (detection.isInPlayerHand) {
@@ -63,6 +88,20 @@ export function GameBoard() {
       } else {
         console.log("Close to player hand - returning card to player hand")
       }
+    }
+
+    if (playedToCenter) {
+      setHandCards((currentHand) => currentHand.filter((card) => card.id !== cardId))
+    } else if (heldGroup.primaryId === cardId && heldGroup.extras.length > 0) {
+      // Return the collected cards back to the hand if the player didn't play them
+      setHandCards((currentHand) => {
+        const missingExtras = heldGroup.extras.filter((extra) => !currentHand.some((card) => card.id === extra.id))
+        return [...currentHand, ...missingExtras]
+      })
+    }
+
+    if (heldGroup.primaryId === cardId) {
+      setHeldGroup({ primaryId: null, extras: [] })
     }
   }
 
@@ -92,12 +131,13 @@ export function GameBoard() {
 
         {/* Hand Cards */}
         <View style={styles.handCards}>
-          {mockHandCards.map((card, index) => (
+          {handCards.map((card, index) => (
             <View
               key={card.id}
               style={[styles.handCard, { zIndex: index, marginLeft: index > 0 ? (isTablet ? -28 : -24) : 0 }]}
             >
               <DraggableCard
+                cardId={card.id}
                 value={card.value}
                 suit={card.suit}
                 color={card.color}
@@ -107,6 +147,8 @@ export function GameBoard() {
                 onPress={() => setSelectedCard(card.id)}
                 onDragStart={() => handleDragStart(card.id)}
                 onDragEnd={(dropX, dropY) => handleDragEnd(card.id, dropX, dropY)}
+                onLongHold={() => handleCardLongHold(card.id)}
+                groupedCount={heldGroup.primaryId === card.id ? heldGroup.extras.length : 0}
               />
             </View>
           ))}

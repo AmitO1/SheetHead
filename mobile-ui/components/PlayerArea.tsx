@@ -114,14 +114,14 @@ const styles = StyleSheet.create({
   },
   avatar: {
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: "rgba(66, 5, 86, 0.16)",
     overflow: "hidden",
   },
   avatarBlur: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(59,130,246,0.6)",
+    backgroundColor: "rgba(66, 5, 86, 0.16)",
   },
   avatarText: {
     color: "white",

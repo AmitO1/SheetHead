@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   faceDownCard: {
-    backgroundColor: "rgba(37,99,235,0.6)",
+    backgroundColor: "rgba(1, 2, 7, 0.6)",
     borderColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",

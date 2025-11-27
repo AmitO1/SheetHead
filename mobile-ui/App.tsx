@@ -10,7 +10,7 @@ function AppContent() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <LinearGradient colors={["#f0f9ff", "#e2e8f0", "#dbeafe"]} style={styles.gradient}>
+      <LinearGradient colors={["#532c5d", "#d4c7de", "#f7f7fb"]} style={styles.gradient}>
         <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <GameBoard />
         </View>

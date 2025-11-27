@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import { View, Text, StyleSheet, Dimensions } from "react-native"
 import { BlurView } from "expo-blur"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
@@ -19,10 +20,14 @@ interface DraggableCardProps {
   faceDown?: boolean
   size?: "xs" | "sm" | "md" | "lg"
   isSelected?: boolean
+  cardId: number | string
   onPress?: () => void
   onDragStart?: () => void
   onDragEnd?: (x: number, y: number) => void
+  onLongHold?: (cardId: number | string) => void
+  holdDelayMs?: number
   isDragging?: boolean
+  groupedCount?: number
 }
 
 export function DraggableCard({
@@ -32,15 +37,21 @@ export function DraggableCard({
   faceDown = false,
   size = "md",
   isSelected = false,
+  cardId,
   onPress,
   onDragStart,
   onDragEnd,
+  onLongHold,
+  holdDelayMs = 1000,
   isDragging = false,
+  groupedCount = 0,
 }: DraggableCardProps) {
   const translateX = useSharedValue(0)
   const translateY = useSharedValue(0)
   const scale = useSharedValue(1)
   const rotation = useSharedValue(0)
+  const holdTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdTriggered = useRef(false)
 
   const sizes = {
     xs: { width: isTablet ? 44 : 28, height: isTablet ? 60 : 40 },
@@ -50,9 +61,32 @@ export function DraggableCard({
   }
 
   const cardSize = sizes[size]
+  const extraCardsCount = Math.max(0, groupedCount ?? 0)
+
+  const startHoldTimer = () => {
+    if (holdTimeout.current) {
+      clearTimeout(holdTimeout.current)
+    }
+    holdTriggered.current = false
+    holdTimeout.current = setTimeout(() => {
+      if (holdTriggered.current) return
+      holdTriggered.current = true
+      if (onLongHold) {
+        onLongHold(cardId)
+      }
+    }, holdDelayMs)
+  }
+
+  const clearHoldTimer = () => {
+    if (holdTimeout.current) {
+      clearTimeout(holdTimeout.current)
+      holdTimeout.current = null
+    }
+  }
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      runOnJS(startHoldTimer)()
       scale.value = withSpring(1.1)
       rotation.value = withSpring(5)
       if (onDragStart) {
@@ -66,12 +100,16 @@ export function DraggableCard({
     .onEnd((event) => {
       scale.value = withSpring(1)
       rotation.value = withSpring(0)
+      runOnJS(clearHoldTimer)()
       if (onDragEnd) {
         runOnJS(onDragEnd)(event.absoluteX, event.absoluteY)
       }
       // Reset position
       translateX.value = withSpring(0)
       translateY.value = withSpring(0)
+    })
+    .onFinalize(() => {
+      runOnJS(clearHoldTimer)()
     })
 
   const tapGesture = Gesture.Tap()
@@ -94,6 +132,14 @@ export function DraggableCard({
       zIndex: isDragging ? 1000 : 1,
     }
   })
+
+  useEffect(() => {
+    return () => {
+      if (holdTimeout.current) {
+        clearTimeout(holdTimeout.current)
+      }
+    }
+  }, [])
 
   const content = faceDown ? (
     <BlurView intensity={40} style={[styles.card, cardSize, styles.faceDownCard]}>
@@ -147,6 +193,11 @@ export function DraggableCard({
     <GestureDetector gesture={composedGesture}>
       <Animated.View style={animatedStyle}>
         {content}
+        {extraCardsCount > 0 && (
+          <View style={styles.groupBadge}>
+            <Text style={styles.groupBadgeText}>+{extraCardsCount}</Text>
+          </View>
+        )}
       </Animated.View>
     </GestureDetector>
   )
@@ -260,5 +311,23 @@ const styles = StyleSheet.create({
   },
   blackText: {
     color: "#111827",
+  },
+  groupBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#1e293b",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.7)",
+    minWidth: 28,
+    alignItems: "center",
+  },
+  groupBadgeText: {
+    color: "#f8fafc",
+    fontWeight: "700",
+    fontSize: 10,
   },
 })

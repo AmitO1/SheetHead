@@ -13,8 +13,7 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/**/*.ts",
-    "../game/**/*.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify"
 import { v4 as uuidv4 } from "uuid"
-import { startGame } from "../../game/GameEngine"
+import { startGame } from "./game/GameEngine"
 import { games, ensureGame, mapLobbyPlayersToState, startTurnTimer, broadcastGameState } from "./gameStore"
 import { LobbyPlayer, ServerMessage } from "./types"
 

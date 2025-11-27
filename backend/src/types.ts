@@ -1,4 +1,4 @@
-import { GameState } from "../../game/GameEngine"
+import { GameState } from "./game/GameEngine"
 
 export type LobbyStatus = "waiting" | "playing" | "finished"
 

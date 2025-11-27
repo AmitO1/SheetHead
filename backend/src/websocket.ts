@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify"
-import { playCards, takePile } from "../../game/GameEngine"
+import { playCards, takePile } from "./game/GameEngine"
 import { ensureGame, broadcastGameState, startTurnTimer, stopTurnTimer } from "./gameStore"
 import { ClientMessage, ServerMessage } from "./types"
 

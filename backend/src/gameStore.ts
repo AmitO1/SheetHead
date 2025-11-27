@@ -1,4 +1,4 @@
-import { GameState, takePile } from "../../game/GameEngine"
+import { GameState, takePile } from "./game/GameEngine"
 import { LobbyGame, LobbyPlayer, ServerMessage } from "./types"
 
 export const games = new Map<string, LobbyGame>()

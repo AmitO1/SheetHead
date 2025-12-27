@@ -19,7 +19,7 @@ export function JoinGame({ onStartGame }: JoinGameProps) {
 
   const handleSubmit = () => {
     if (!playerName.trim()) return
-    if (!gameId.trim()) return
+    if (gameMode === "join" && !gameId.trim()) return
 
     onStartGame(
       playerName.trim(),
@@ -28,7 +28,9 @@ export function JoinGame({ onStartGame }: JoinGameProps) {
     )
   }
 
-  const isFormValid = playerName.trim().length > 0 && gameId.trim().length > 0
+  const isFormValid = 
+    playerName.trim().length > 0 && 
+    (gameMode === "create" || gameId.trim().length > 0)
 
   return (
     <View style={styles.container}>
@@ -82,21 +84,23 @@ export function JoinGame({ onStartGame }: JoinGameProps) {
             </BlurView>
           </View>
 
-          {/* Game ID Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Game ID</Text>
-            <BlurView intensity={40} style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder={gameMode === "create" ? "Create a game ID" : "Enter game ID"}
-                placeholderTextColor="rgba(51, 65, 85, 0.5)"
-                value={gameId}
-                onChangeText={setGameId}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </BlurView>
-          </View>
+          {/* Game ID Input (only for join mode) */}
+          {gameMode === "join" && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Game ID</Text>
+              <BlurView intensity={40} style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter game ID"
+                  placeholderTextColor="rgba(51, 65, 85, 0.5)"
+                  value={gameId}
+                  onChangeText={setGameId}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </BlurView>
+            </View>
+          )}
 
           {/* Player Count Selector (only for create mode) */}
           {gameMode === "create" && (

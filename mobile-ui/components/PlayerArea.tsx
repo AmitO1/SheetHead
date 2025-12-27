@@ -7,7 +7,7 @@ const { width } = Dimensions.get("window")
 const isTablet = width >= 768
 
 interface Player {
-  id: number
+  id: string
   name: string
   avatar: string
   isCurrentPlayer: boolean

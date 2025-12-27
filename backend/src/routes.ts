@@ -52,6 +52,7 @@ export function registerRoutes(app: FastifyInstance) {
       player,
     }
     const messageStr = JSON.stringify(message)
+    console.log(`Broadcasting PLAYER_JOINED to ${game.connections.size} clients for game ${game.id}`)
     game.connections.forEach((socket) => {
       try {
         socket.send(messageStr)

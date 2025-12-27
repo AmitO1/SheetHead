@@ -104,14 +104,38 @@ export function playCards(game: GameState, playerId: string, cardIds: string[]):
   //first check if the player can play
   if (isPlayable(player.hand, topCard, game, playerId)) {
     //special rule for 8/9 - if player have no 8/9 then he should skip the turn
-    if (!player.hand.some(card => card.value === '8' || card.value === '9') && topCard?.value === '8') {
-      console.log('PLAYER HAS NO 8/9');
-      advanceTurn(game);
-      return true;
+    // Check if the "8 Constraint" is active
+    // Active ONLY if the top card is 8 AND the person who played it was the PREVIOUS player
+    let is8ConstraintActive = false;
+    if (topCard?.value === '8') {
+      const currentPlayerIndex = game.players.findIndex(p => p.id === playerId);
+      const previousPlayerIndex = (currentPlayerIndex - 1 + game.players.length) % game.players.length;
+      const previousPlayerId = game.players[previousPlayerIndex].id;
+      if (game.lastPlayedPlayerId === previousPlayerId) {
+        is8ConstraintActive = true;
+      }
+    }
+
+    // Special rule for 8/9 - if constraint active AND player has no 8/9, skip turn
+    if (is8ConstraintActive) {
+      if (!player.hand.some(card => card.value === '8' || card.value === '9')) {
+        console.log('PLAYER HAS NO 8/9 - CONSTRAINT ACTIVE -> SKIP');
+        advanceTurn(game);
+        return true;
+      }
     }
 
     //then check if the move is valid - if move is invalid but player can play then he should choose another card to play
     const isAfterFive = game.lastPlayedCardValue === '5';
+    
+    // Minimal Fix: Enforce 8/9 constraint here if active
+    if (is8ConstraintActive) {
+       if (!cards.some(c => c.value === '8' || c.value === '9')) {
+           console.log('INVALID MOVE - MUST PLAY 8/9');
+           return false;
+       }
+    }
+    
     if (!isValidMove(cards, topCard, game.pile, isAfterFive)) {
         console.log('INVALID MOVE');
         return false; // Player can still play, but needs to choose different cards

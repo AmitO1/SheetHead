@@ -31,11 +31,6 @@ export function registerRoutes(app: FastifyInstance) {
       name,
     }))
 
-    // Check if provided game ID already exists
-    if (games.has(gameId)) {
-      return reply.code(400).send({ error: "Game ID already exists" })
-    }
-
     games.set(gameId, {
       id: gameId,
       status: "waiting",

@@ -3,19 +3,35 @@ import { v4 as uuidv4 } from "uuid"
 import { startGame } from "./game/GameEngine"
 import { games, ensureGame, mapLobbyPlayersToState, startTurnTimer, broadcastGameState } from "./gameStore"
 import { LobbyPlayer, ServerMessage } from "./types"
+import { generateShortId } from "./utils"
 
 export function registerRoutes(app: FastifyInstance) {
   // Create a new game
   app.post<{
     Body: { playerNames?: string[]; gameId?: string; playerCount?: number }
   }>("/games", async (request, reply) => {
-    const gameId = request.body?.gameId || uuidv4()
+    // Generate a short 6-character ID (Option 2)
+    // We strive for uniqueness, so we'll try a few times if collision happens
+    let gameId = request.body?.gameId
+    
+    if (!gameId) {
+      let retries = 5
+      do {
+        gameId = generateShortId()
+        retries--
+      } while (games.has(gameId) && retries > 0)
+      
+      if (games.has(gameId)) {
+        return reply.code(500).send({ error: "Failed to generate unique Game ID" })
+      }
+    }
+
     const players: LobbyPlayer[] = (request.body?.playerNames || []).map((name) => ({
       id: uuidv4(),
       name,
     }))
 
-    // Check if game already exists
+    // Check if provided game ID already exists
     if (games.has(gameId)) {
       return reply.code(400).send({ error: "Game ID already exists" })
     }

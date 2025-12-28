@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 // ------------ Types ------------
 export type Suit = '♠' | '♥' | '♦' | '♣' | '🃏';
@@ -91,127 +92,113 @@ export function playCards(game: GameState, playerId: string, cardIds: string[]):
   game.isAnotherTurn = false;
   
   const player = game.players.find(p => p.id === playerId);
-  if (!player || player.isOut) throw new Error('Invalid player');
+  if (!player || player.isOut) {
+    logger.error(`[PlayCards] Invalid player or player is out: ${playerId}`);
+    throw new Error('Invalid player');
+  }
 
   const cards = cardIds.map(cid => {
     const idx = player.hand.findIndex(c => c.id === cid);
-    if (idx === -1) throw new Error('Card not in hand');
+    if (idx === -1) {
+       logger.error(`[PlayCards] Card not in hand: ${cid} for player ${player.name}`);
+       throw new Error('Card not in hand');
+    }
     return player.hand[idx];
   });
 
+  const cardValues = cards.map(c => c.value).join(', ');
+  logger.info(`[PlayCards] Player ${player.name} attempting to play: [${cardValues}]`);
+
   const topCard = game.pile.at(-1);
 
-  //first check if the player can play
-  if (isPlayable(player.hand, topCard, game, playerId)) {
-    //special rule for 8/9 - if player have no 8/9 then he should skip the turn
-    // Check if the "8 Constraint" is active
-    // Active ONLY if the top card is 8 AND the person who played it was the PREVIOUS player
-    let is8ConstraintActive = false;
-    if (topCard?.value === '8') {
-      const currentPlayerIndex = game.players.findIndex(p => p.id === playerId);
-      const previousPlayerIndex = (currentPlayerIndex - 1 + game.players.length) % game.players.length;
-      const previousPlayerId = game.players[previousPlayerIndex].id;
-      if (game.lastPlayedPlayerId === previousPlayerId) {
-        is8ConstraintActive = true;
-      }
+  //then check if the move is valid - if move is invalid but player can play then he should choose another card to play
+  const isAfterFive = game.lastPlayedCardValue === '5' && game.lastPlayedPlayerId === playerId;
+  
+  if (!isValidMove(cards, topCard, game, isAfterFive)) {
+      logger.warn(`[PlayCards] Invalid move by ${player.name}. Attempted: [${cardValues}] on Top: ${topCard?.value || 'Empty'}`);
+      return false; // Player can still play, but needs to choose different cards
     }
-
-    // Special rule for 8/9 - if constraint active AND player has no 8/9, skip turn
-    if (is8ConstraintActive) {
-      if (!player.hand.some(card => card.value === '8' || card.value === '9')) {
-        console.log('PLAYER HAS NO 8/9 - CONSTRAINT ACTIVE -> SKIP');
-        advanceTurn(game);
-        return true;
-      }
-    }
-
-    //then check if the move is valid - if move is invalid but player can play then he should choose another card to play
-    const isAfterFive = game.lastPlayedCardValue === '5';
-    
-    // Minimal Fix: Enforce 8/9 constraint here if active
-    if (is8ConstraintActive) {
-       if (!cards.some(c => c.value === '8' || c.value === '9')) {
-           console.log('INVALID MOVE - MUST PLAY 8/9');
-           return false;
-       }
-    }
-    
-    if (!isValidMove(cards, topCard, game.pile, isAfterFive)) {
-        console.log('INVALID MOVE');
-        return false; // Player can still play, but needs to choose different cards
-      }
-    
-      // Play the cards
-      for (const card of cards) {
-        const idx = player.hand.findIndex(c => c.id === card.id);
-        player.hand.splice(idx, 1);
-        game.pile.push(card);
-      }
-      
-      // Update last played player and card value
-      game.lastPlayedPlayerId = playerId;
-      game.lastPlayedCardValue = cards[0].value;
-    
-      // Check for special card effects
-      const playedCard = cards[0]; // Assuming all cards have same value
-      
-      // If player played a 5, they get another turn
-      if (playedCard.value === '5') {
-        console.log('PLAYER PLAYED 5 - ANOTHER TURN');
-        game.isAnotherTurn = true;
-        refillHand(player, game);
-        return true; // player plays again, turn completed
-      }
-      
-      // If player played a 10, burn the pile and they get another turn
-      if (playedCard.value === '10') {
-        console.log('PLAYER PLAYED 10 - BURNING PILE AND ANOTHER TURN');
-        game.pile = []; // Burn the pile
-        game.lastPlayedCardValue = undefined; // Reset when pile burns
-        game.isAnotherTurn = true;
-        refillHand(player, game);
-        return true; // player plays again, turn completed
-      }
-    
-      // BURN check
-      if (shouldBurnPile(game.pile)) {
-        console.log('BURNING PILE');
-        game.pile = [];
-        game.isAnotherTurn = true;
-        game.lastPlayedCardValue = undefined; // Reset when pile burns
-        refillHand(player, game);
-        return true; // player plays again, turn completed
-      }
-    
-      refillHand(player, game);
-    
-      if (checkWinCondition(player)) {
-        game.status = 'finished';
-        game.winnerId = player.id;
-        return true; // game finished, turn completed
-      }
-      
-      // Normal turn completion - advance to next player
-      advanceTurn(game);
-      return true; // turn completed normally
+  
+  // Play the cards
+  for (const card of cards) {
+    const idx = player.hand.findIndex(c => c.id === card.id);
+    player.hand.splice(idx, 1);
+    game.pile.push(card);
   }
-  else {
-    // Player can't play, so they take the pile
-    console.log('PLAYER CANNOT PLAY, TAKING PILE');
-    player.hand.push(...game.pile);
+  
+  // Update last played player and card value
+  game.lastPlayedPlayerId = playerId;
+  game.lastPlayedCardValue = cards[0].value;
+  
+  logger.info(`[PlayCards] ${player.name} played [${cardValues}] successfully.`);
+
+  // Check for special card effects
+  const playedCard = cards[0]; // Assuming all cards have same value
+  
+  // If player played a 5, they get another turn
+  if (playedCard.value === '5') {
+    logger.info(`[SpecialRule] ${player.name} played 5 - Gets ANOTHER TURN`);
+    game.isAnotherTurn = true;
     refillHand(player, game);
-    game.pile = []; 
-    advanceTurn(game);
-    return true; // turn completed (player took pile)
+    return true; // player plays again, turn completed
   }
+  
+  // If player played a 10, burn the pile and they get another turn
+  if (playedCard.value === '10') {
+    logger.info(`[SpecialRule] ${player.name} played 10 - BURNING PILE and Gets ANOTHER TURN`);
+    game.pile = []; // Burn the pile
+    game.lastPlayedCardValue = undefined; // Reset when pile burns
+    game.isAnotherTurn = true;
+    refillHand(player, game);
+    return true; // player plays again, turn completed
+  }
+
+  // BURN check
+  if (shouldBurnPile(game.pile)) {
+    logger.info(`[BurnCheck] 4-of-a-kind! BURNING PILE. ${player.name} gets ANOTHER TURN`);
+    game.pile = [];
+    game.isAnotherTurn = true;
+    game.lastPlayedCardValue = undefined; // Reset when pile burns
+    refillHand(player, game);
+    return true; // player plays again, turn completed
+  }
+
+  refillHand(player, game);
+
+  if (checkWinCondition(player)) {
+    logger.info(`[GameEnd] Player ${player.name} HAS WON THE GAME!`);
+    game.status = 'finished';
+    game.winnerId = player.id;
+    return true; // game finished, turn completed
+  }
+  
+  // Normal turn completion - advance to next player
+  advanceTurn(game);
+  return true; // turn completed normally
 }
 
 export function takePile(game: GameState, playerId: string): void {
   const player = game.players.find(p => p.id === playerId);
   if (!player || player.isOut) throw new Error('Invalid player');
 
+  // Check for 8 constraint exception: If active, player SKIPS instead of taking pile
+  const topCard = game.pile.at(-1);
+  if (topCard?.value === '8') {
+    const currentPlayerIndex = game.players.findIndex(p => p.id === playerId);
+    const previousPlayerIndex = (currentPlayerIndex - 1 + game.players.length) % game.players.length;
+    const previousPlayerId = game.players[previousPlayerIndex].id;
+    
+    if (game.lastPlayedPlayerId === previousPlayerId) {
+       logger.info(`[8-Constraint] Active for ${player.name}. Skipping turn instead of taking pile.`);
+       advanceTurn(game);
+       return;
+    }
+  }
+
+  logger.info(`[TakePile] Player ${player.name} took the pile (${game.pile.length} cards).`);
   player.hand.push(...game.pile);
   game.pile = [];
+  game.lastPlayedCardValue = undefined;
 
   refillHand(player, game);
   advanceTurn(game);
@@ -228,8 +215,6 @@ function advanceTurn(game: GameState): void {
     }
 
     game.currentPlayerIndex = next;
-    // Reset last played card value when turn advances
-    game.lastPlayedCardValue = undefined;
   }
 }
 
@@ -270,7 +255,7 @@ function checkWinCondition(player: Player): boolean {
 export function isValidMove(
   cards: Card[],
   topCard: Card | undefined,
-  pile: Card[],
+  game: GameState,
   isAfterFive: boolean = false
 ): boolean {
   if (cards.length === 0) return false;
@@ -279,12 +264,19 @@ export function isValidMove(
   const value = cards[0].value;
   if (!cards.every(c => c.value === value)) return false;
 
-  // Custom rule: if pile is empty → allow any card
-  if (!topCard) return true;
+  // Special case 1: After playing a 5, player can put as many cards of same value as they have - TODO validate
+  if (isAfterFive) {
+    return true; 
+  }
 
-  // Special case 1: After playing a 5, player can put as many cards of same value as they have
-  if (isAfterFive && cards.length > 1) {
-    return true; // Allow multiple cards after 5
+  // Custom rule: if pile is empty - TODO validate
+  if (!topCard) {
+     // Allow 1 card (normal play)
+     if (cards.length === 1) return true;
+     // Allow 4 cards (instant burn)
+     if (cards.length === 4) return true;
+     // Disallow 2 or 3 cards on empty pile (unless isAfterFive, handled above)
+     return false;
   }
 
   // Special case 2: Burning the pile with 4 cards
@@ -294,8 +286,8 @@ export function isValidMove(
     
     // Count consecutive cards of the same value from the top
     let consecutiveCount = 0;
-    for (let i = pile.length - 1; i >= 0; i--) {
-      if (pile[i].value === pileValue) {
+    for (let i = game.pile.length - 1; i >= 0; i--) {
+      if (game.pile[i].value === pileValue) {
         consecutiveCount++;
       } else {
         break; // Stop counting when we hit a different value
@@ -311,7 +303,17 @@ export function isValidMove(
     // If not a burn completion, only allow single cards
     return false;
   }
-
+  if (topCard.value === '8'){
+    const currentPlayerIndex = game.currentPlayerIndex;
+    const previousPlayerIndex = (currentPlayerIndex - 1 + game.players.length) % game.players.length;
+    const previousPlayerId = game.players[previousPlayerIndex].id;
+    
+    if (game.lastPlayedPlayerId === previousPlayerId) { // TODO - validate
+       logger.info(`[8-Constraint] Active for ${game.players[currentPlayerIndex].name}. player must play 8 or 9`);
+       // Check if the played cards are 8 or 9
+       return cards.some(card => card.value === '8' || card.value === '9');
+    }
+  }
   if (topCard.value === '7') {
     return cards.some(card => card.value === 'JOKER' || getCardValue(card) <= 7);
   }
@@ -321,6 +323,9 @@ export function isValidMove(
   
   //if value is 2,5,10,3,joker then player can play
   if (cards.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '5' || card.value === '10' || card.value === '3')) {
+    return true;
+  }
+  if (topCard.value === 'JOKER') { // TODO - validate
     return true;
   }
   // Basic rule: card must be higher than the top card (lowest priority)
@@ -341,7 +346,7 @@ function getCardValue(card: Card): number {
   return valueMap[card.value] || 0;
 }
 
-function isPlayable(hand: Card[], topCard: Card | undefined, game: GameState, currentPlayerId: string): boolean {
+export function checkPlayable(hand: Card[], topCard: Card | undefined, game: GameState, currentPlayerId: string): boolean {
   // If no top card, any card is playable
   if (!topCard) return true;
   
@@ -365,8 +370,16 @@ function isPlayable(hand: Card[], topCard: Card | undefined, game: GameState, cu
     const previousPlayerId = game.players[previousPlayerIndex].id;
     
     if (game.lastPlayedPlayerId === previousPlayerId) {
-      return true;
+      // Must check if player HAS 8/9. 
+      // If yes -> return true (allow interaction). 
+      // If no -> return false (frontend will auto-take pile -> backend will SKIP).
+      return hand.some(card => card.value === '8' || card.value === '9');
     }
+  }
+
+  // If top card is joker, any card is playable
+  if (topCard.value === 'JOKER') {
+    return true;
   }
 
   // For all other cases (not 3, not 7, not 8), check if player has a card bigger than top card or 2/10/5/3/joker

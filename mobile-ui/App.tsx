@@ -135,6 +135,7 @@ function AppContent() {
               gameId={gameId}
               onPlayCards={(cardIds) => gameSocket.send({ type: "PLAY_CARDS", gameId, playerId, cardIds })}
               onTakePile={() => gameSocket.send({ type: "TAKE_PILE", gameId, playerId })}
+              checkPlayable={() => gameSocket.checkPlayable(gameId, playerId)}
               onStartGame={handleLobbyStart}
             />
           ) : (

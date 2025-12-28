@@ -83,6 +83,39 @@ class GameSocket {
       }
   }
 
+  checkPlayable(gameId: string, playerId: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const handler = (isPlayable: boolean) => {
+        resolve(isPlayable)
+        this.removeCheckPlayableListener(listener)
+      }
+      
+      const listener = { handler }
+      this.checkPlayableListeners.add(listener)
+      
+      this.send({
+        type: "CHECK_PLAYABLE",
+        gameId,
+        playerId
+      })
+      
+      // Timeout fallback (resolve true to avoid blocking if server fails)
+      setTimeout(() => {
+          if (this.checkPlayableListeners.has(listener)) {
+              this.removeCheckPlayableListener(listener)
+              console.warn("Check playable timed out")
+              resolve(true) 
+          }
+      }, 5000)
+    })
+  }
+
+  private checkPlayableListeners: Set<{ handler: (isPlayable: boolean) => void }> = new Set()
+
+  private removeCheckPlayableListener(listener: { handler: (isPlayable: boolean) => void }) {
+      this.checkPlayableListeners.delete(listener)
+  }
+
   private handleMessage(message: ServerMessage) {
     console.log("Received message:", message.type)
     switch (message.type) {
@@ -94,6 +127,9 @@ class GameSocket {
           break
       case "CONNECTED":
           this.onConnectedCallbacks.forEach(cb => cb())
+          break
+      case "CHECK_PLAYABLE_RESULT":
+          this.checkPlayableListeners.forEach(l => l.handler(message.isPlayable))
           break
       case "ERROR":
         console.error("Server error:", message.message)

@@ -1,5 +1,5 @@
 import { WebSocket } from "ws"
-import { playCards, takePile } from "../game/GameEngine"
+import { playCards, takePile, checkPlayable } from "../game/GameEngine"
 import { ensureGame, broadcastGameState, startTurnTimer, stopTurnTimer } from "../gameStore"
 import { ClientMessage, ServerMessage } from "../types"
 
@@ -16,6 +16,9 @@ export async function handleSocketMessage(socket: WebSocket, message: Buffer) {
         break
       case "TAKE_PILE":
         handleTakePile(socket, data)
+        break
+      case "CHECK_PLAYABLE":
+        handleCheckPlayable(socket, data)
         break
       case "PING":
         socket.send(JSON.stringify({ type: "PONG" } as ServerMessage))
@@ -118,6 +121,24 @@ function handleTakePile(socket: WebSocket, data: { gameId: string; playerId: str
 
   // Broadcast updated state
   broadcastGameState(game)
+}
+
+function handleCheckPlayable(socket: WebSocket, data: { gameId: string; playerId: string }) {
+  const game = ensureGame(data.gameId)
+  if (!game.state) return
+
+  const player = game.state.players.find(p => p.id === data.playerId)
+  if (!player) return
+
+  const topCard = game.state.pile.at(-1)
+  
+  const isPlayable = checkPlayable(player.hand, topCard, game.state, data.playerId)
+  
+  socket.send(JSON.stringify({
+    type: "CHECK_PLAYABLE_RESULT",
+    isPlayable,
+    gameId: data.gameId
+  } as ServerMessage))
 }
 
 function sendError(socket: WebSocket, message: string) {

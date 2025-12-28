@@ -21,13 +21,14 @@ interface GameBoardProps {
   onPlayCards: (cardIds: string[]) => void
   onTakePile: () => void
   onStartGame: () => void 
+  checkPlayable: () => Promise<boolean>
 }
 
 const getSuitColor = (suit: string) => {
   return suit === '♥' || suit === '♦' ? 'red' : 'black';
 }
 
-export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile, onStartGame }: GameBoardProps) {
+export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile, onStartGame, checkPlayable }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
   const [showPileHistory, setShowPileHistory] = useState(false)
   const [draggingCard, setDraggingCard] = useState<string | null>(null)
@@ -35,14 +36,41 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
     primaryId: null,
     extras: [],
   })
+  const [isCheckingPlayability, setIsCheckingPlayability] = useState(false)
 
   const currentPlayer = gameState.players.find(p => p.id === playerId)
   const opponents = gameState.players.filter(p => p.id !== playerId)
   
-  // If player list is not full or we want to show empty seats, we might need logic.
-  // For now, just show opponents at top.
-  
   const handCards = currentPlayer?.hand || []
+
+  // Check playability when turn starts or state updates
+  useEffect(() => {
+    const checkTurn = async () => {
+       const activePlayer = gameState.players[gameState.currentPlayerIndex];
+       
+       // Only check if it is explicitly MY turn and game is playing
+       if (gameState.status === 'playing' && activePlayer?.id === playerId) {
+           setIsCheckingPlayability(true);
+           try {
+             // Block input and check
+             const canPlay = await checkPlayable();
+             if (!canPlay) {
+                 // User cannot play, so we automatically take pile/skip
+                 console.log("Cannot play, auto-taking pile");
+                 onTakePile();
+             }
+           } catch (e) {
+               console.error("Error checking playability", e);
+           } finally {
+               setIsCheckingPlayability(false);
+           }
+       }
+    }
+    
+    checkTurn();
+  }, [gameState.currentPlayerIndex, gameState.lastPlayedCardValue, gameState.status, gameState.pile.length, playerId]); 
+  // Dependency on pile.length/lastPlayedCardValue to re-trigger if game changes while it's still my turn (e.g. invalid move? no, state update comes from server)
+  // Actually, standard state update will trigger this.
 
   // Reset held group if hand changes (turn end)
   useEffect(() => {
@@ -88,8 +116,6 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
       }
     } else {
         // Returned to hand, just clear held group if needed, or keep it?
-        // Logic in original code was complex local state manipulation.
-        // Here we just don't send the action.
         if (heldGroup.primaryId === cardId) {
              setHeldGroup({ primaryId: null, extras: [] })
         }
@@ -100,6 +126,11 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
 
   return (
     <View style={styles.container}>
+      {/* Block UI when checking playability */}
+      {isCheckingPlayability && (
+          <View style={[StyleSheet.absoluteFill, { zIndex: 999, backgroundColor: 'rgba(0,0,0,0.1)' }]} />
+      )}
+
       {/* Game ID Display */}
       <View style={{position: 'absolute', top: 40, left: 20, zIndex: 100}}>
         <BlurView intensity={30} style={{padding: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.3)'}}>
@@ -121,8 +152,8 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
                   <View style={{ gap: 8, width: 200, marginVertical: 8 }}>
                       {gameState.players.map(p => (
                           <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.id === playerId ? '#4ade80' : '#cbd5e1' }} />
-                              <Text style={{ color: 'white', fontWeight: '500' }}>{p.name} {p.id === playerId ? '(You)' : ''}</Text>
+                               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.id === playerId ? '#4ade80' : '#cbd5e1' }} />
+                               <Text style={{ color: 'white', fontWeight: '500' }}>{p.name} {p.id === playerId ? '(You)' : ''}</Text>
                           </View>
                       ))}
                   </View>
@@ -208,11 +239,6 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
         <View style={styles.handCards}>
           {handCards.map((card, index) => {
             const isHeld = heldGroup.primaryId === card.id || heldGroup.extras.some(e => e.id === card.id)
-            // If it is an extra card in a held group, don't render it separately (it "stacks" visually behind, 
-            // but DraggableCard logic for grouping needs to be robust. 
-            // In original code: `return currentHand.filter((card) => !extras.some((extra) => extra.id === card.id))`
-            // We are using `handCards` from props, so we can't filter it out permanently.
-            // We should hide extras.
             
             if (heldGroup.extras.some(e => e.id === card.id)) return null;
 
@@ -222,14 +248,7 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
               style={[styles.handCard, { zIndex: index, marginLeft: index > 0 ? (isTablet ? -28 : -24) : 0 }]}
             >
               <DraggableCard
-                cardId={card.id} // DraggableCard expects string or number? Original was number.
-                // We need to check DraggableCard types. But Card.id is string (UUID).
-                // Let's assume we need to update DraggableCard or cast if it expects number.
-                // Looking at GameBoard.tsx line 52: handleDragStart(cardId: number).
-                // So DraggableCard probably expects number.
-                // I need to check DraggableCard.tsx.
-                // FOR NOW, I will cast to any to avoid error, then fix dependencies.
-                // actually better to check DraggableCard.
+                cardId={card.id} 
                 value={card.value}
                 suit={card.suit}
                 color={getSuitColor(card.suit)}

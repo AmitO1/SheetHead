@@ -192,7 +192,9 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
                 id: player.id,
                 name: player.name,
                 avatar: "",
-                isCurrentPlayer: false
+                isCurrentPlayer: false,
+                faceUp: player.faceUp,
+                faceDown: player.faceDown
             }} 
             position="top" 
             timerProgress={0} // TODO: Implement timer logic
@@ -222,7 +224,9 @@ export function GameBoard({ gameState, playerId, gameId, onPlayCards, onTakePile
                 id: currentPlayer.id,
                 name: currentPlayer.name,
                 avatar: "",
-                isCurrentPlayer: true
+                isCurrentPlayer: true,
+                faceUp: currentPlayer.faceUp,
+                faceDown: currentPlayer.faceDown
             }} 
             position="bottom" 
             timerProgress={0} // TODO 

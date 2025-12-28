@@ -264,12 +264,12 @@ export function isValidMove(
   const value = cards[0].value;
   if (!cards.every(c => c.value === value)) return false;
 
-  // Special case 1: After playing a 5, player can put as many cards of same value as they have - TODO validate
+  // Special case 1: After playing a 5, player can put as many cards of same value as they have 
   if (isAfterFive) {
     return true; 
   }
 
-  // Custom rule: if pile is empty - TODO validate
+  // Custom rule: if pile is empty
   if (!topCard) {
      // Allow 1 card (normal play)
      if (cards.length === 1) return true;
@@ -281,6 +281,7 @@ export function isValidMove(
 
   // Special case 2: Burning the pile with 4 cards
   if (cards.length > 1) {
+    logger.info(`[PlayCards] Player ${game.players[game.currentPlayerIndex].name} attempting to play multiple cards: [${cards}] on Top: ${topCard.value}`);
     // Check if this would complete a burn (4 consecutive of same value)
     const pileValue = topCard.value;
     
@@ -373,6 +374,7 @@ export function checkPlayable(hand: Card[], topCard: Card | undefined, game: Gam
       // Must check if player HAS 8/9. 
       // If yes -> return true (allow interaction). 
       // If no -> return false (frontend will auto-take pile -> backend will SKIP).
+      logger.info(`[8-Constraint] checking if Player ${game.players[currentPlayerIndex].name} has 8/9`);
       return hand.some(card => card.value === '8' || card.value === '9');
     }
   }

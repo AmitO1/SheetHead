@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Dimensions } from "react-native"
 import { BlurView } from "expo-blur"
 import { PlayingCard } from "./PlayingCard"
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg"
+import { Card } from "../utils/types"
 
 const { width } = Dimensions.get("window")
 const isTablet = width >= 768
@@ -11,12 +12,18 @@ interface Player {
   name: string
   avatar: string
   isCurrentPlayer: boolean
+  faceUp: Card[]
+  faceDown: Card[]
 }
 
 interface PlayerAreaProps {
   player: Player
   position: "top" | "bottom"
   timerProgress: number
+}
+
+const getSuitColor = (suit: string) => {
+  return suit === '♥' || suit === '♦' ? 'red' : 'black';
 }
 
 export function PlayerArea({ player, position, timerProgress }: PlayerAreaProps) {
@@ -76,24 +83,35 @@ export function PlayerArea({ player, position, timerProgress }: PlayerAreaProps)
       {/* Cards Area */}
       <View style={styles.cardsArea}>
         {/* Face-down cards */}
-        <View style={[styles.cardRow, isTop && styles.cardRowSmall]}>
-          <PlayingCard faceDown size={isTop ? "xs" : "sm"} />
-          <PlayingCard faceDown size={isTop ? "xs" : "sm"} />
-          <PlayingCard faceDown size={isTop ? "xs" : "sm"} />
-        </View>
+        {player.faceDown.length > 0 && (
+          <View style={[styles.cardRow, isTop && styles.cardRowSmall]}>
+            {player.faceDown.map((card, index) => (
+              <PlayingCard key={`fd-${index}`} faceDown size={isTop ? "xs" : "sm"} />
+            ))}
+          </View>
+        )}
 
         {/* Face-up cards */}
-        <View
-          style={[
-            styles.cardRow,
-            isTop && styles.cardRowSmall,
-            { marginTop: isTop ? (isTablet ? -36 : -24) : isTablet ? -56 : -36 },
-          ]}
-        >
-          <PlayingCard value="7" suit="♠" color="black" size={isTop ? "xs" : "sm"} />
-          <PlayingCard value="9" suit="♥" color="red" size={isTop ? "xs" : "sm"} />
-          <PlayingCard value="K" suit="♣" color="black" size={isTop ? "xs" : "sm"} />
-        </View>
+        {player.faceUp.length > 0 && (
+          <View
+            style={[
+              styles.cardRow,
+              isTop && styles.cardRowSmall,
+              // Only add negative margin if there are face-down cards behind them
+              player.faceDown.length > 0 && { marginTop: isTop ? (isTablet ? -36 : -24) : isTablet ? -56 : -36 },
+            ]}
+          >
+            {player.faceUp.map((card) => (
+              <PlayingCard 
+                key={card.id} 
+                value={card.value} 
+                suit={card.suit} 
+                color={getSuitColor(card.suit)} 
+                size={isTop ? "xs" : "sm"} 
+              />
+            ))}
+          </View>
+        )}
       </View>
     </View>
   )

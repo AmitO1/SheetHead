@@ -3,9 +3,10 @@ import cors from "@fastify/cors"
 import websocket from "@fastify/websocket"
 import { registerWebSocket } from "./websocket"
 import { registerRoutes } from "./routes"
+import logger from "./utils/logger"
 
 export function buildServer(): FastifyInstance {
-  const app = Fastify({ logger: true })
+  const app = Fastify({ logger: logger as any })
 
   app.register(cors, { origin: true })
   app.register(websocket)

@@ -195,6 +195,10 @@ export function takePile(game: GameState, playerId: string): void {
     }
   }
 
+  if (topCard?.value === '3'){
+    game.pile.pop();
+  }
+
   logger.info(`[TakePile] Player ${player.name} took the pile (${game.pile.length} cards).`);
   player.hand.push(...game.pile);
   game.pile = [];
@@ -356,14 +360,7 @@ export function checkPlayable(hand: Card[], topCard: Card | undefined, game: Gam
     // Player can only play if they have a joker, and they must play the joker
     return hand.some(card => card.value === 'JOKER');
   }
-  //if player have either 2,3,5,joker then he can play
-  if (hand.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '3' || card.value === '5')) {
-    return true;
-  }
-  //if top card is 7, then player can play only with 2,4,6,5,7,joker
-  if (topCard.value === '7') {
-    return hand.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '4' || card.value === '6' || card.value === '5' || card.value === '7');
-  }
+
   // If top card is 8 and the previous player put it, current player can play anycase either skip turn or put 8/9
   if (topCard.value === '8') {
     const currentPlayerIndex = game.players.findIndex(p => p.id === currentPlayerId);
@@ -377,6 +374,15 @@ export function checkPlayable(hand: Card[], topCard: Card | undefined, game: Gam
       logger.info(`[8-Constraint] checking if Player ${game.players[currentPlayerIndex].name} has 8/9`);
       return hand.some(card => card.value === '8' || card.value === '9');
     }
+  }  
+
+  //if player have either 2,3,5,joker then he can play
+  if (hand.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '3' || card.value === '5')) {
+    return true;
+  }
+  //if top card is 7, then player can play only with 2,4,6,5,7,joker
+  if (topCard.value === '7') {
+    return hand.some(card => card.value === 'JOKER' || card.value === '2' || card.value === '4' || card.value === '6' || card.value === '5' || card.value === '7');
   }
 
   // If top card is joker, any card is playable

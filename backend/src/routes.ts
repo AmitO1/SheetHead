@@ -114,5 +114,9 @@ export function registerRoutes(app: FastifyInstance) {
     }
     return reply.code(200).send({ gameId: game.id, status: game.status, state: game.state })
   })
+  // Health check
+  app.get("/health", async (request, reply) => {
+    return reply.code(200).send({ status: "ok" })
+  })
 }
 

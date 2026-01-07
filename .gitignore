@@ -65,3 +65,7 @@ test-results/
 .AppleDouble
 .LSOverride
 Icon?
+
+Secrets
+shithead-v1.pem
+.agent/

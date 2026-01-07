@@ -1,18 +1,23 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native"
 import { BlurView } from "expo-blur"
 import { PlayingCard } from "./PlayingCard"
+import { Card } from "../utils/types"
 
 interface CenterPileProps {
   showHistory: boolean
   onToggleHistory: () => void
+  cards: Card[]
 }
 
-export function CenterPile({ showHistory, onToggleHistory }: CenterPileProps) {
-  const pileCards = [
-    { value: "5", suit: "♦", color: "red" as const },
-    { value: "8", suit: "♣", color: "black" as const },
-    { value: "Q", suit: "♥", color: "red" as const },
-  ]
+const getSuitColor = (suit: string) => {
+  return suit === '♥' || suit === '♦' ? 'red' : 'black';
+}
+
+export function CenterPile({ showHistory, onToggleHistory, cards }: CenterPileProps) {
+  const topCard = cards.length > 0 ? cards[cards.length - 1] : null
+  
+  // Show last 3 cards for history if available
+  const historyCards = cards.slice(-3)
 
   return (
     <View style={styles.container}>
@@ -23,17 +28,34 @@ export function CenterPile({ showHistory, onToggleHistory }: CenterPileProps) {
       <View style={styles.pileContainer}>
         {showHistory ? (
           <View style={styles.historyRow}>
-            {pileCards.map((card, index) => (
-              <View key={index} style={[styles.historyCard, { opacity: 0.5 + index * 0.25 }]}>
-                <PlayingCard value={card.value} suit={card.suit} color={card.color} size="md" />
+            {historyCards.map((card, index) => (
+              <View key={card.id} style={[styles.historyCard, { opacity: 0.5 + index * 0.25 }]}>
+                <PlayingCard 
+                    value={card.value} 
+                    suit={card.suit} 
+                    color={getSuitColor(card.suit)} 
+                    size="md" 
+                />
               </View>
             ))}
+            {historyCards.length === 0 && <Text style={{color: 'white'}}>Empty</Text>}
           </View>
         ) : (
           <View style={styles.stackedPile}>
-            <View style={[styles.stackCard, styles.stackCard1]} />
-            <View style={[styles.stackCard, styles.stackCard2]} />
-            <PlayingCard value="Q" suit="♥" color="red" size="md" />
+             {/* Render "stack" effect only if we have more than 1 card */}
+            {cards.length > 1 && <View style={[styles.stackCard, styles.stackCard1]} />}
+            {cards.length > 2 && <View style={[styles.stackCard, styles.stackCard2]} />}
+            
+            {topCard ? (
+                <PlayingCard 
+                    value={topCard.value} 
+                    suit={topCard.suit} 
+                    color={getSuitColor(topCard.suit)} 
+                    size="md" 
+                />
+            ) : (
+                <View style={[styles.emptyPile]} />
+            )}
           </View>
         )}
       </View>
@@ -79,6 +101,17 @@ const styles = StyleSheet.create({
   },
   stackedPile: {
     position: "relative",
+    width: 56, // Fixed width to prevent collapsing
+    height: 80,
+  },
+  emptyPile: {
+    width: 56,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    borderStyle: 'dashed',
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   stackCard: {
     position: "absolute",

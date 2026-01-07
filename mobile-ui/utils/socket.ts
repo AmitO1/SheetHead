@@ -2,7 +2,7 @@ import { ServerMessage, ClientMessage, GameState, LobbyPlayer } from "./types"
 
 // Use localhost for iOS Simulator, 10.0.2.2 for Android Emulator
 // const WS_URL = "ws://10.0.2.2:4000/ws"
-const WS_URL = "ws://localhost:4000/ws"
+const WS_URL = "ws://51.16.14.62:4000/ws"
 
 type GameStateCallback = (state: GameState) => void
 type ConnectedCallback = () => void

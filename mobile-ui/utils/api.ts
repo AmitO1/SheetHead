@@ -2,7 +2,7 @@ import { LobbyPlayer, GameState, LobbyStatus } from "./types"
 
 // Use localhost for iOS Simulator, 10.0.2.2 for Android Emulator, or your LAN IP for physical device
 // const API_URL = "http://10.0.2.2:3000" 
-const API_URL = "http://localhost:4000"
+const API_URL = "http://51.16.14.62:4000"
 
 export type CreateGameResponse = {
   gameId: string

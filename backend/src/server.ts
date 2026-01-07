@@ -25,7 +25,7 @@ export function buildServer(): FastifyInstance {
 export async function startLocalServer() {
   const server = buildServer()
   const port = Number(process.env.PORT) || 4000
-  const host = process.env.HOST || "127.0.0.1"
+  const host = process.env.HOST || "0.0.0.0"
   await server.listen({ port, host })
   console.log(`Server listening on http://${host}:${port}`)
   console.log(`WebSocket available at ws://${host}:${port}/ws`)

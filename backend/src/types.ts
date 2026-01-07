@@ -14,6 +14,7 @@ export type LobbyGame = {
   state?: GameState
   connections: Set<any> // WebSocket connections
   turnTimer?: NodeJS.Timeout
+  turnUpdateInterval?: NodeJS.Timeout
   turnStartTime?: number
 }
 

@@ -57,9 +57,18 @@ export function startTurnTimer(game: LobbyGame) {
   game.turnStartTime = Date.now()
 
   // Send timer updates every second
-  const timerInterval = setInterval(() => {
+  // Broadcast timer updates every second (1000ms)
+  // Store interval in game object to prevent accumulation of intervals
+  if (game.turnUpdateInterval) {
+    clearInterval(game.turnUpdateInterval)
+  }
+
+  game.turnUpdateInterval = setInterval(() => {
     if (!game.turnStartTime || !game.state) {
-      clearInterval(timerInterval)
+      if (game.turnUpdateInterval) {
+        clearInterval(game.turnUpdateInterval)
+        game.turnUpdateInterval = undefined
+      }
       return
     }
 
@@ -81,8 +90,9 @@ export function startTurnTimer(game: LobbyGame) {
       }
     })
 
-    if (remaining === 0) {
-      clearInterval(timerInterval)
+    if (remaining === 0 && game.turnUpdateInterval) {
+      clearInterval(game.turnUpdateInterval)
+      game.turnUpdateInterval = undefined
     }
   }, 1000)
 
@@ -125,6 +135,10 @@ export function stopTurnTimer(game: LobbyGame) {
   if (game.turnTimer) {
     clearTimeout(game.turnTimer)
     game.turnTimer = undefined
+  }
+  if (game.turnUpdateInterval) {
+    clearInterval(game.turnUpdateInterval)
+    game.turnUpdateInterval = undefined
   }
   game.turnStartTime = undefined
 }
